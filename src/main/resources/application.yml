@@ -1,0 +1,68 @@
+server:
+  port: 8080
+
+ipgeo:
+  cache:
+    ttl-days: 30
+    max-size: 100000
+  backpressure:
+    retry-after-seconds: 1
+  freeipapi:
+    base-url: https://free.freeipapi.com/api/json/
+    timeout: 5s
+    connect-timeout: 2s
+    ratelimiter:
+      enabled: true
+      name: geoApiLimiter
+    retry:
+      name: geoApiRetry
+    circuitbreaker:
+      name: geoApiBreaker
+
+resilience4j:
+  ratelimiter:
+    instances:
+      geoApiLimiter:
+        limitForPeriod: 60
+        limitRefreshPeriod: 60s
+        timeoutDuration: 10s
+  retry:
+    instances:
+      geoApiRetry:
+        maxAttempts: 3
+        waitDuration: 500ms
+        enableExponentialBackoff: true
+        exponentialBackoffMultiplier: 2.0
+        enableRandomizedWait: true
+        randomizedWaitFactor: 0.5
+        retryExceptions:
+          - java.io.IOException
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - java.util.concurrent.TimeoutException
+          - reactor.netty.http.client.PrematureCloseException
+          - org.springframework.web.reactive.function.client.WebClientRequestException
+          - org.springframework.web.reactive.function.client.WebClientResponseException$TooManyRequests
+  circuitbreaker:
+    instances:
+      geoApiBreaker:
+        slidingWindowType: COUNT_BASED
+        slidingWindowSize: 50
+        minimumNumberOfCalls: 20
+        failureRateThreshold: 50
+        slowCallDurationThreshold: 2s
+        slowCallRateThreshold: 50
+        permittedNumberOfCallsInHalfOpenState: 5
+        waitDurationInOpenState: 30s
+        recordExceptions:
+          - java.io.IOException
+          - java.net.ConnectException
+          - java.net.SocketTimeoutException
+          - java.util.concurrent.TimeoutException
+          - reactor.netty.http.client.PrematureCloseException
+          - org.springframework.web.reactive.function.client.WebClientResponseException$TooManyRequests
+
+logging:
+  level:
+    com.example.ipgeo.provider: DEBUG
+    io.github.resilience4j: INFO
